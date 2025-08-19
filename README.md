@@ -46,7 +46,7 @@ The migrations must be run before the events processor can work.
 ```
 ├── localstack/
 │   ├── init-aws.sh
-├── processor/                      # Event Processor
+├── processor/                     Event Processor
 │   ├── cmd/
 │   │   ├── migrate.go       Run database migrations command
 │   │   ├── process.go      Run events processor
