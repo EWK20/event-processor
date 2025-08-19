@@ -38,14 +38,15 @@ It depends on the SQS queue being created, so the docker compose will need to be
 ## Migrations
 
 Migrations are managed using [Goose](https://github.com/pressly/goose).
-Goose is a database migration tool that applies the migrations in `/processor/db/migrations/`.
+Goose is a database migration tool that applies the migrations in `/processor/internal/db/migrations/`.
+The migrations must be run before the events processor can work.
 
 ## Project Structure
 
 ```
 ├── localstack/
 │   ├── init-aws.sh
-├── processor/                      Event Processor
+├── processor/                      # Event Processor
 │   ├── cmd/
 │   │   ├── migrate.go       Run database migrations command
 │   │   ├── process.go      Run events processor
