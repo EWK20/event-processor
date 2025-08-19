@@ -147,10 +147,17 @@ The testing mainly consists of happy path tests, with some more time I would add
 - Malformed events are rejected and sent to the DLQ
 
 To Run:
-`docker compose up`
+
+```
+docker compose up
+```
+
 This will start the localstack server with sqs enables and a postgres database that the integration tests can use.
 
-`go test ./... -v`
+```
+go test ./... -v
+```
+
 This starts all tests in project
 
 ## Design Decisions
