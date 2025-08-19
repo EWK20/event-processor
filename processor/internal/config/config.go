@@ -23,6 +23,7 @@ type DB struct {
 
 type AWS struct {
 	SQSQueueName       string
+	SQSDLQName         string
 	SQSEndpoint        string
 	AWSRegion          string
 	AWSAccessKeyID     string
@@ -76,6 +77,10 @@ func getDatabaseCfg(cfg *DB) error {
 func getAWSCfg(cfg *AWS) error {
 	if cfg.SQSQueueName = os.Getenv("SQS_QUEUE_NAME"); cfg.SQSQueueName == "" {
 		return fmt.Errorf("%w: %s", ErrMissingCfg, "SQS_QUEUE_NAME")
+	}
+
+	if cfg.SQSDLQName = os.Getenv("SQS_DLQ_QUEUE_NAME"); cfg.SQSDLQName == "" {
+		return fmt.Errorf("%w: %s", ErrMissingCfg, "SQS_DLQ_QUEUE_NAME")
 	}
 
 	if cfg.SQSEndpoint = os.Getenv("SQS_ENDPOINT"); cfg.SQSEndpoint == "" {

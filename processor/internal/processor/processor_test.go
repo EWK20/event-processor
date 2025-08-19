@@ -15,7 +15,6 @@ import (
 )
 
 func TestRun(t *testing.T) {
-
 	type Test struct {
 		input models.Event
 	}
@@ -43,6 +42,7 @@ func TestRun(t *testing.T) {
 				AWSSecretAccessKey: "test",
 				SQSEndpoint:        "http://localhost:4566",
 				SQSQueueName:       "test-queue",
+				SQSDLQName:         "test-queue-dlq",
 			}
 
 			fakeDB := NewFakeDB()
@@ -60,11 +60,11 @@ func TestRun(t *testing.T) {
 			require.NoError(t, err)
 
 			// Run processor in a goroutine so it consumes the message
-			_, cancel := context.WithCancel(t.Context())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			go func() {
-				processor.Run() // blocks forever
+				processor.Run(ctx) // blocks forever
 			}()
 
 			// Wait until the message is processed (poll the mock DB)
@@ -75,6 +75,7 @@ func TestRun(t *testing.T) {
 			// Check that event persisted correctly
 			require.Equal(t, test.input.ClientID, fakeDB.events[len(fakeDB.events)-1].ClientID)
 			require.Equal(t, test.input.EventType, fakeDB.events[len(fakeDB.events)-1].EventType)
+
 		})
 	}
 }

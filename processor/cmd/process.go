@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/EWK20/event-processor/processor/internal/config"
 	"github.com/EWK20/event-processor/processor/internal/db"
 	"github.com/EWK20/event-processor/processor/internal/processor"
@@ -28,7 +30,7 @@ func createProcessCMD() *cobra.Command {
 				log.Fatal().Err(err).Msg("failed to instantiate events processor")
 			}
 
-			processor.Run()
+			processor.Run(context.Background())
 		},
 	}
 }

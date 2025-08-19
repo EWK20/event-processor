@@ -86,7 +86,7 @@ func (p *Producer) Run() {
 
 		msg, err := json.Marshal(&event)
 		if err != nil {
-			panic(err)
+			log.Fatal().Err(err).Msg("failed to marshal json")
 		}
 
 		_, err = p.sqsClient.SendMessage(context.Background(), &sqs.SendMessageInput{

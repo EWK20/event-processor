@@ -11,12 +11,14 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/rs/zerolog/log"
 )
 
 var (
 	ErrFailedToCreateClient = errors.New("failed to create SQS client")
 	ErrFailedToGetQueueURL  = errors.New("failed to get queue URL")
+	ErrFailedToGetDLQURL    = errors.New("failed to get DLQ URL")
 )
 
 type DB interface {
@@ -26,6 +28,7 @@ type DB interface {
 type Processor struct {
 	Client   *sqs.Client
 	QueueURL *string
+	DLQURL   *string
 	db       DB
 }
 
@@ -51,19 +54,27 @@ func New(cfg config.AWS, db DB) (*Processor, error) {
 		QueueName: &cfg.SQSQueueName,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToCreateClient, err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToGetQueueURL, err)
+	}
+
+	dlqQueueURL, err := sqsClient.GetQueueUrl(context.Background(), &sqs.GetQueueUrlInput{
+		QueueName: &cfg.SQSDLQName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToGetDLQURL, err)
 	}
 
 	return &Processor{
 		Client:   sqsClient,
 		QueueURL: queueURL.QueueUrl,
+		DLQURL:   dlqQueueURL.QueueUrl,
 		db:       db,
 	}, nil
 }
 
-func (p *Processor) Run() {
+func (p *Processor) Run(ctx context.Context) {
 	for {
-		msgOutput, err := p.Client.ReceiveMessage(context.TODO(), &sqs.ReceiveMessageInput{
+		msgOutput, err := p.Client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 			QueueUrl:            p.QueueURL,
 			MaxNumberOfMessages: 10,
 			WaitTimeSeconds:     5,
@@ -79,6 +90,10 @@ func (p *Processor) Run() {
 
 			if err := json.Unmarshal([]byte(*msg.Body), &event); err != nil {
 				log.Error().Err(err).Msg("event is invalid")
+
+				if err := p.sendMsgToDLQ(&msg); err != nil {
+					log.Error().Err(err).Msg("failed to send event to dead letter queue")
+				}
 
 				continue
 			}
@@ -101,4 +116,26 @@ func (p *Processor) Run() {
 			log.Info().Any("event", event).Msg("persisted an event")
 		}
 	}
+}
+
+func (p *Processor) sendMsgToDLQ(msg *types.Message) error {
+	// Send message to DLQ
+	_, err := p.Client.SendMessage(context.Background(), &sqs.SendMessageInput{
+		QueueUrl:    p.DLQURL,
+		MessageBody: msg.Body,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send invalid message: %w", err)
+	}
+
+	// Delete message after sending to dlq
+	_, err = p.Client.DeleteMessage(context.TODO(), &sqs.DeleteMessageInput{
+		QueueUrl:      p.QueueURL,
+		ReceiptHandle: msg.ReceiptHandle,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete message from queue: %w", err)
+	}
+
+	return nil
 }
